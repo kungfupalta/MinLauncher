@@ -1,23 +1,85 @@
-name: Build APK
+name: Build SmartDebloaterShizuku
+
 on:
-  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: unzip -q MinLauncher.zip
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Buscar y descomprimir el .zip de la raíz
+        run: |
+          set -euo pipefail
+          ZIP_FILE=$(find "$GITHUB_WORKSPACE" -maxdepth 1 -type f -iname '*.zip' | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "::error::No se encontró ningún archivo .zip en la raíz del repositorio"
+            exit 1
+          fi
+          echo "Usando: $ZIP_FILE"
+          rm -rf "$GITHUB_WORKSPACE/_proyecto"
+          mkdir -p "$GITHUB_WORKSPACE/_proyecto"
+          unzip -q "$ZIP_FILE" -d "$GITHUB_WORKSPACE/_proyecto"
+
+      - name: Detectar settings.gradle.kts
+        id: detect
+        run: |
+          set -euo pipefail
+          SETTINGS=$(find "$GITHUB_WORKSPACE/_proyecto" -type f -name 'settings.gradle.kts' -not -path '*/__MACOSX/*' | head -n 1)
+          if [ -z "$SETTINGS" ]; then
+            echo "::error::No se encontró settings.gradle.kts dentro del .zip"
+            exit 1
+          fi
+          DIR=$(dirname "$SETTINGS")
+          echo "Proyecto Gradle en: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
-      - uses: gradle/actions/setup-gradle@v4
+          java-version: '17'
+
+      - name: Configurar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.11.1
-      - run: gradle -p MinLauncher :app:assembleRelease
-      - uses: actions/upload-artifact@v4
+          gradle-version: '8.9'
+
+      - name: Aceptar licencias del Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Compilar (gradle assembleDebug)
+        working-directory: ${{ steps.detect.outputs.dir }}
+        run: gradle assembleDebug --stacktrace --no-daemon
+
+      - name: Renombrar APK a SmartDebloaterShizuku.apk
+        run: |
+          set -euo pipefail
+          APK=$(find "${{ steps.detect.outputs.dir }}" -type f -path '*/build/outputs/apk/debug/*.apk' | head -n 1)
+          if [ -z "$APK" ]; then
+            echo "::error::No se generó ningún APK"
+            exit 1
+          fi
+          cp "$APK" "$GITHUB_WORKSPACE/SmartDebloaterShizuku.apk"
+          ls -lh "$GITHUB_WORKSPACE/SmartDebloaterShizuku.apk"
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
         with:
-          name: MinLauncher-apk
-          path: MinLauncher/app/build/outputs/apk/release/*.apk
+          name: SmartDebloaterShizuku-apk
+          path: SmartDebloaterShizuku.apk
+
+      - name: Crear Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Smart Debloater Shizuku Build
+          files: SmartDebloaterShizuku.apk
