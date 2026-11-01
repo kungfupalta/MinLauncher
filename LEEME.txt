@@ -1,0 +1,17 @@
+COMO COMPILAR MinLauncher DESDE EL CELULAR (repo nuevo)
+
+Contenido de este zip:
+  MinLauncher.zip        -> el proyecto del launcher (NO lo descomprimas)
+  build.yml.txt          -> el archivo de compilacion (copia visible)
+  .github/workflows/build.yml -> el mismo archivo, en su carpeta (oculta en Mis archivos)
+
+Pasos:
+1) En github.com/new creá el repo: nombre MinLauncher, Public, README en Off.
+2) Tocá "uploading an existing file", elegí MinLauncher.zip (sin descomprimir) y "Commit changes".
+3) Add file > Create new file. En el nombre escribí exactamente:
+       .github/workflows/build.yml
+   Abrí build.yml.txt, copiá todo su contenido, pegalo en el editor y "Commit changes".
+4) Entrá a la pestaña Actions. Tarda unos 3 minutos.
+5) Con el tilde verde, abrí la corrida y bajá el artefacto "MinLauncher-apk" (viene en zip, descomprimilo e instalá el APK).
+
+Si el build falla, abrí el paso rojo "Run gradle ..." y mandá una captura de las lineas que empiezan con "e:".
